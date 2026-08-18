@@ -19,13 +19,52 @@ document.addEventListener("DOMContentLoaded", () => {
         activityCard.className = "activity-card";
 
         const spotsLeft = details.max_participants - details.participants.length;
+        const participantsList = details.participants.length
+          ? details.participants.map(p => `<li><span class="participant-email">${p}</span><button class="delete-btn" data-activity="${name}" data-email="${p}" title="Remove participant">✕</button></li>`).join('')
+          : '<li class="empty-state">No participants yet.</li>';
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants-section">
+            <div class="participants-header">
+              <strong>Participants</strong>
+              <span class="participants-count">${details.participants.length}/${details.max_participants}</span>
+            </div>
+            <ul class="participants-list">
+              ${participantsList}
+            </ul>
+          </div>
         `;
+
+        // Add delete button event listeners
+        const deleteButtons = activityCard.querySelectorAll(".delete-btn");
+        deleteButtons.forEach(button => {
+          button.addEventListener("click", async (e) => {
+            e.preventDefault();
+            const activity = button.dataset.activity;
+            const email = button.dataset.email;
+
+            try {
+              const response = await fetch(
+                `/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(email)}`,
+                { method: "DELETE" }
+              );
+
+              if (response.ok) {
+                fetchActivities();
+              } else {
+                const result = await response.json();
+                alert(result.detail || "Failed to remove participant");
+              }
+            } catch (error) {
+              console.error("Error removing participant:", error);
+              alert("Failed to remove participant");
+            }
+          });
+        });
 
         activitiesList.appendChild(activityCard);
 
@@ -62,6 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
